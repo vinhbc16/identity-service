@@ -2,6 +2,8 @@ package com.caovinh.identity_service.service;
 
 import com.caovinh.identity_service.dto.UserCreationRequest;
 import com.caovinh.identity_service.dto.UserUpdateRequest;
+import com.caovinh.identity_service.exception.AppException;
+import com.caovinh.identity_service.exception.ErrorCode;
 import com.caovinh.identity_service.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,9 @@ public class UserService {
 
     public User createRequest ( UserCreationRequest request ){
         User user = new User();
+        if( userRepository.existsByUsername(request.getUsername()) ){
+            throw new AppException(ErrorCode.USER_EXISTS);
+        }
         user.setUsername(request.getUsername());
         user.setPassword(request.getPassword());
         user.setFirstName(request.getFirstName());
@@ -49,6 +54,11 @@ public class UserService {
     public User deleteUser(String userId){
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         userRepository.delete(user);
+        return user;
+    }
+
+    public User getUserById(String userId){
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         return user;
     }
 }
