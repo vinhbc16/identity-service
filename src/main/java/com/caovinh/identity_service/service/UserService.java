@@ -1,32 +1,39 @@
 package com.caovinh.identity_service.service;
 
-import com.caovinh.identity_service.dto.UserCreationRequest;
-import com.caovinh.identity_service.dto.UserUpdateRequest;
+import com.caovinh.identity_service.dto.request.UserCreationRequest;
+import com.caovinh.identity_service.dto.request.UserUpdateRequest;
+import com.caovinh.identity_service.dto.response.UserResponse;
 import com.caovinh.identity_service.exception.AppException;
 import com.caovinh.identity_service.exception.ErrorCode;
+import com.caovinh.identity_service.mapper.UserMapper;
 import com.caovinh.identity_service.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.caovinh.identity_service.entity.User;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
 public class UserService {
-    @Autowired
-    private UserRepository userRepository;
+    UserRepository userRepository;
+    UserMapper userMapper;
 
     public User createRequest ( UserCreationRequest request ){
-        User user = new User();
         if( userRepository.existsByUsername(request.getUsername()) ){
             throw new AppException(ErrorCode.USER_EXISTS);
         }
-        user.setUsername(request.getUsername());
-        user.setPassword(request.getPassword());
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setDob(request.getDob());
-
+//        UserCreationRequest request1 = UserCreationRequest.builder()
+//                .username(request.getUsername())
+//                .password(request.getPassword())
+//        .build();
+        User user = userMapper.toUser(request);
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         return userRepository.save(user);
     }
 
@@ -34,21 +41,10 @@ public class UserService {
         return userRepository.findAll();
     }
 
-    public User updateUser(String userId, UserUpdateRequest request){
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-        if (request.getPassword() != null) {
-            user.setPassword(request.getPassword());
-        }
-        if (request.getFirstName() != null) {
-            user.setFirstName(request.getFirstName());
-        }
-        if (request.getLastName() != null) {
-            user.setLastName(request.getLastName());
-        }
-        if (request.getDob() != null) {
-            user.setDob(request.getDob());
-        }
-        return userRepository.save(user);
+    public UserResponse updateUser(String userId, UserUpdateRequest request){
+        User user = userRepository.findById(userId).orElseThrow(() -> new AppException((ErrorCode.USER_NOT_FOUND)));
+        userMapper.updateUser(user, request);
+        return userMapper.toUserResponse(userRepository.save(user));
     }
 
     public User deleteUser(String userId){
@@ -57,8 +53,7 @@ public class UserService {
         return user;
     }
 
-    public User getUserById(String userId){
-        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-        return user;
+    public UserResponse getUserById(String userId){
+        return userMapper.toUserResponse(userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND)));
     }
 }
